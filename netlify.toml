@@ -6,4 +6,9 @@
   package = "@netlify/plugin-nextjs"
 
 [functions]
-  included_files = ["prisma/**"]  # Include if you're using Prisma
+  external_node_modules = ["@prisma/client", "bcrypt"]
+  included_files = ["prisma/**"]
+
+[build.environment]
+  NEXT_PUBLIC_SUPABASE_URL = "https://ojoeqrpyuxvgdhoxjlbz.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qb2VxcnB5dXh2Z2Rob3hqbGJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzA0MTIxMzIsImV4cCI6MjA0NTk4ODEzMn0.hlsHwaK7rQYiInafAhfbKOj1RD0otNH3tuGhbyOP4oc"
