@@ -1,23 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { unstable_cache } from 'next/cache'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const transactions = await prisma.$transaction(async (tx) => {
-      return await tx.transaction.findMany({
-        orderBy: { date: 'desc' },
-      })
+    const getTransactions = unstable_cache(
+      async () => {
+        return await prisma.transaction.findMany({
+          orderBy: { date: 'desc' },
+          select: {
+            id: true,
+            description: true,
+            amount: true,
+            date: true,
+            category: true,
+            type: true,
+          }
+        })
+      },
+      ['transactions'],
+      { revalidate: 30 } // Cache for 30 seconds
+    )
+
+    const transactions = await getTransactions()
+    return NextResponse.json(transactions, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=59',
+      },
     })
-    
-    return NextResponse.json(transactions)
   } catch (error) {
     console.error('Transaction error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch transactions' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 })
   }
 }
 

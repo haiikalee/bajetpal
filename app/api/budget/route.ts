@@ -3,20 +3,43 @@ import prisma from '../../../lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]/options'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const budgets = await prisma.budget.findMany({
-      where: {
-        userId: session.user.id
-      }
-    })
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(budgets || [])
+    const [budgets, total] = await Promise.all([
+      prisma.budget.findMany({
+        where: { userId: session.user.id },
+        take: limit,
+        skip: skip,
+        orderBy: { category: 'asc' }
+      }),
+      prisma.budget.count({
+        where: { userId: session.user.id }
+      })
+    ])
+
+    return NextResponse.json({
+      budgets,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=59',
+      },
+    })
   } catch (error) {
     console.error('Error in GET /api/budget:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
