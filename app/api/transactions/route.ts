@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '../../../lib/prisma'
+import prisma from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const transactions = await prisma.transaction.findMany({
-    orderBy: { date: 'desc' },
-  })
-  return NextResponse.json(transactions)
+  try {
+    const transactions = await prisma.$transaction(async (tx) => {
+      return await tx.transaction.findMany({
+        orderBy: { date: 'desc' },
+      })
+    })
+    
+    return NextResponse.json(transactions)
+  } catch (error) {
+    console.error('Transaction error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch transactions' },
+      { status: 500 }
+    )
+  }
 }
 
 export async function POST(request: Request) {
