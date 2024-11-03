@@ -7,42 +7,18 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json([], { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
-    const skip = (page - 1) * limit
-
-    const [budgets, total] = await Promise.all([
-      prisma.budget.findMany({
-        where: { userId: session.user.id },
-        take: limit,
-        skip: skip,
-        orderBy: { category: 'asc' }
-      }),
-      prisma.budget.count({
-        where: { userId: session.user.id }
-      })
-    ])
-
-    return NextResponse.json({
-      budgets,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
-      }
-    }, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=59',
-      },
+    const budgets = await prisma.budget.findMany({
+      where: { userId: session.user.id },
+      orderBy: { category: 'asc' }
     })
+
+    return NextResponse.json(budgets || [])
   } catch (error) {
     console.error('Error in GET /api/budget:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json([], { status: 500 })
   }
 }
 

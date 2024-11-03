@@ -42,16 +42,22 @@ export default function BudgetPage() {
   const [newCategory, setNewCategory] = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
+  const [isLoading, setIsLoading] = useState(true)
   const { data: session, status } = useSession()
   const router = useRouter()
 
   const fetchBudgets = async () => {
     try {
+      setIsLoading(true)
       const response = await fetch('/api/budget')
+      if (!response.ok) throw new Error('Failed to fetch budgets')
       const data = await response.json()
-      setBudgets(data)
+      setBudgets(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching budgets:', error)
+      setBudgets([])
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -78,7 +84,7 @@ export default function BudgetPage() {
     }
   }, [session])
 
-  if (status === 'loading') {
+  if (status === 'loading' || isLoading) {
     return <div>Loading...</div>
   }
 
@@ -195,44 +201,50 @@ export default function BudgetPage() {
 
           <TabsContent value="overview">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {budgets.map((budget) => {
-                const { spent, percentage, status } = calculatePercentageUsed(budget)
-                return (
-                  <Card key={budget.id} className={`border-l-4 ${
-                    status === 'danger' ? 'border-l-red-500' : 
-                    status === 'warning' ? 'border-l-yellow-500' : 
-                    'border-l-green-500'
-                  }`}>
-                    <CardHeader>
-                      <CardTitle className="flex justify-between">
-                        <span>{budget.category}</span>
-                        <span className="text-gray-500">
-                          ${spent.toFixed(2)} / ${budget.amount.toFixed(2)}
-                        </span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Progress value={percentage} className="h-2" />
-                      <div className="mt-2 text-sm text-gray-600">
-                        {percentage.toFixed(0)}% of budget used
-                      </div>
-                      {status === 'danger' && (
-                        <div className="text-red-500 text-sm mt-2">
-                          Warning: You&apos;ve exceeded 90% of your budget!
+              {budgets && budgets.length > 0 ? (
+                budgets.map((budget) => {
+                  const { spent, percentage, status } = calculatePercentageUsed(budget)
+                  return (
+                    <Card key={budget.id} className={`border-l-4 ${
+                      status === 'danger' ? 'border-l-red-500' : 
+                      status === 'warning' ? 'border-l-yellow-500' : 
+                      'border-l-green-500'
+                    }`}>
+                      <CardHeader>
+                        <CardTitle className="flex justify-between">
+                          <span>{budget.category}</span>
+                          <span className="text-gray-500">
+                            ${spent.toFixed(2)} / ${budget.amount.toFixed(2)}
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Progress value={percentage} className="h-2" />
+                        <div className="mt-2 text-sm text-gray-600">
+                          {percentage.toFixed(0)}% of budget used
                         </div>
-                      )}
-                      <div className="mt-4 flex justify-end space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => openEditModal(budget)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteBudget(budget.id)}>
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+                        {status === 'danger' && (
+                          <div className="text-red-500 text-sm mt-2">
+                            Warning: You&apos;ve exceeded 90% of your budget!
+                          </div>
+                        )}
+                        <div className="mt-4 flex justify-end space-x-2">
+                          <Button variant="outline" size="sm" onClick={() => openEditModal(budget)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDeleteBudget(budget.id)}>
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })
+              ) : (
+                <div className="col-span-2 text-center text-gray-500">
+                  No budgets found. Add a budget to get started.
+                </div>
+              )}
             </div>
           </TabsContent>
 

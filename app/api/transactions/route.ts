@@ -1,35 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const getTransactions = unstable_cache(
-      async () => {
-        return await prisma.transaction.findMany({
-          orderBy: { date: 'desc' },
-          select: {
-            id: true,
-            description: true,
-            amount: true,
-            date: true,
-            category: true,
-            type: true,
-          }
-        })
-      },
-      ['transactions'],
-      { revalidate: 30 } // Cache for 30 seconds
-    )
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    const transactions = await getTransactions()
-    return NextResponse.json(transactions, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=59',
-      },
+    const transactions = await prisma.transaction.findMany({
+      where: { userId: session.user.id },
+      orderBy: { date: 'desc' },
     })
+
+    return NextResponse.json(transactions)
   } catch (error) {
     console.error('Transaction error:', error)
     return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 })
